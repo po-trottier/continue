@@ -8,6 +8,12 @@ class NGC extends BaseLLM {
   static defaultOptions: Partial<LLMOptions> = {
     apiBase: "https://api.nvcf.nvidia.com/v2/nvcf/pexec/functions",
     model: "codellama-70b",
+    completionOptions: {
+      model: "codellama-70b",
+      maxTokens: 1024,
+      temperature: 0.2,
+      topP: 0.7
+    },
   };
 
   private static MODEL_IDS: { [name: string]: string } = {

@@ -797,6 +797,35 @@ export const PROVIDER_INFO: { [key: string]: ModelInfo } = {
     ],
     packages: [codeLlamaInstruct, llama2Chat, wizardCoder, mistral, zephyr],
   },
+  ngc: {
+    title: "NVIDIA AI Foundation Endpoints",
+    provider: "ngc",
+    refPage: "ngc",
+    description:
+      "Interact with the latest state-of-the-art AI model APIs optimized on the NVIDIA accelerated computing stack",
+    longDescription:
+      'Interact with the latest state-of-the-art AI model APIs optimized on the NVIDIA accelerated computing stack.\n\nTo get started with NVIDIA AI Foundation Endpoints:\n1. Obtain an NVIDIA AI Foundation Endpoints API key from [here](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-foundation/models/codellama-70b/api) (Click the "Generate Key" button)\n2. Paste below\n3. Select a model preset',
+    icon: "nvidia.png",
+    tags: [
+      ModelProviderTag["Requires API Key"], 
+      ModelProviderTag["Open-Source"],
+    ],
+    packages: [
+      codeLlamaInstruct,
+      llama2Chat,
+      mistral,
+    ],
+    collectInputFor: [
+      {
+        inputType: CollectInputType.text,
+        key: "apiKey",
+        label: "API Key",
+        placeholder: "Enter your NVIDIA AI Foundation Endpoints API key",
+        required: true,
+      },
+      ...completionParamsInputs,
+    ],
+  },
   llamacpp: {
     title: "llama.cpp",
     provider: "llama.cpp",
@@ -911,34 +940,5 @@ After it's up and running, you can start using Continue.`,
       },
     ],
     collectInputFor: [...completionParamsInputs],
-  },
-  ngc: {
-    title: "NVIDIA AI Foundation Endpoints",
-    provider: "ngc",
-    refPage: "ngc",
-    description:
-      "Interact with the latest state-of-the-art AI model APIs optimized on the NVIDIA accelerated computing stack",
-    longDescription:
-      'Interact with the latest state-of-the-art AI model APIs optimized on the NVIDIA accelerated computing stack.\n\nTo get started with NVIDIA AI Foundation Endpoints:\n1. Obtain an NVIDIA AI Foundation Endpoints API key from [here](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-foundation/models/codellama-70b/api) (Click the "Generate Key" button)\n2. Paste below\n3. Select a model preset',
-    icon: "nvidia.png",
-    tags: [
-      ModelProviderTag["Requires API Key"], 
-      ModelProviderTag["Open-Source"],
-    ],
-    packages: [
-      codeLlamaInstruct,
-      llama2Chat,
-      mistral,
-    ],
-    collectInputFor: [
-      {
-        inputType: CollectInputType.text,
-        key: "apiKey",
-        label: "API Key",
-        placeholder: "Enter your NVIDIA AI Foundation Endpoints API key",
-        required: true,
-      },
-      ...completionParamsInputs,
-    ],
   },
 };

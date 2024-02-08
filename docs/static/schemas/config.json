@@ -135,7 +135,7 @@
             "### Llamafile\nTo get started with llamafiles, find and download a binary on their [GitHub repo](https://github.com/Mozilla-Ocho/llamafile#binary-instructions). Then run it with the following command:\n\n```shell\nchmod +x ./llamafile\n./llamafile\n```\n> [Reference](https://continue.dev/docs/reference/Model%20Providers/llamafile)",
             "### Mistral API\n\nTo get access to the Mistral API, obtain your API key from the [Mistral platform](https://docs.mistral.ai/)",
             "### DeepInfra\n\n> [Reference](https://continue.dev/docs/reference/Model%20Providers/deepinfra)",
-            "### NVIDIA AI Foundation Endpoints\n\n> [Reference](https://continue.dev/docs/reference/Model%20Providers/ngc)"
+            "### NVIDIA AI Foundation Endpoints\n\n> [Reference](https://catalog.ngc.nvidia.com/ai-foundation-models)"
           ],
           "type": "string"
         },
@@ -273,8 +273,7 @@
                   "google-palm",
                   "huggingface-inference-api",
                   "replicate",
-                  "together",
-                  "ngc"
+                  "together"
                 ]
               }
             },
@@ -394,31 +393,6 @@
                   "gpt-4-vision-preview",
                   "codellama-70b",
                   "AUTODETECT"
-                ]
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "provider": {
-                "enum": ["ngc"]
-              }
-            },
-            "required": ["provider"]
-          },
-          "then": {
-            "properties": {
-              "model": {
-                "enum": [
-                  "codellama-13b",
-                  "codellama-34b",
-                  "codellama-70b",
-                  "llama2-13b",
-                  "llama2-70b",
-                  "mistral-7b",
-                  "mistral-8x7b"
                 ]
               }
             }

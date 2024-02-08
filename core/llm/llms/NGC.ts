@@ -78,8 +78,6 @@ class NGC extends BaseLLM {
       }
     }
   }
-
-
 }
 
 export default NGC;

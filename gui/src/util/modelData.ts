@@ -244,6 +244,10 @@ const llama2Chat: ModelPackage = {
           model: "llama2-34b",
           title: "Llama2-34b",
         },
+        "70b": {
+          model: "llama2-70b",
+          title: "Llama2-70b",
+        },
       },
     },
   ],
@@ -867,6 +871,8 @@ After it's up and running, you can start using Continue.`,
     ],
     packages: [
       codeLlamaInstruct,
+      llama2Chat,
+      mistral,
     ],
     collectInputFor: [
       {

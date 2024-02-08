@@ -10,10 +10,14 @@ class NGC extends BaseLLM {
     model: "codellama-70b",
   };
 
-  private function_id_lookup: { [key: string]: string } = {
+  private static MODEL_IDS: { [name: string]: string } = {
     "codellama-13b": "f6a96af4-8bf9-4294-96d6-d71aa787612e",
     "codellama-34b": "df2bee43-fb69-42b9-9ee5-f4eabbeaf3a8",
     "codellama-70b": "2ae529dc-f728-4a46-9b8d-2697213666d8",
+    "llama2-13b": "e0bb7fb9-5333-4a27-8534-c6288f921d3f",
+    "llama2-70b": "0e349b44-440a-44e1-93e9-abe8dcb27158",
+    "mistral-7b": "35ec3354-2681-4d0e-a8dd-80325dcf7c63",
+    "mistral-8x7b": "8f4118ba-60a8-4e6b-8574-e38a4067a4a3",
   }
 
   private _convertArgs(options: CompletionOptions) {
@@ -49,7 +53,7 @@ class NGC extends BaseLLM {
     messages: ChatMessage[],
     options: CompletionOptions
   ): AsyncGenerator<ChatMessage> {
-    const apiUrl = `${this.apiBase}/${this.function_id_lookup[this.model]}`
+    const apiUrl = `${this.apiBase}/${NGC.MODEL_IDS[this.model]}`
     const headers = {
       "Content-Type": "application/json",
       "Accept": "text/event-stream",

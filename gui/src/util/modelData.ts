@@ -200,7 +200,7 @@ const codeLlamaInstruct: ModelPackage = {
       },
     },
   ],
-  providerOptions: ["ollama", "lmstudio", "together", "llamacpp", "replicate"],
+  providerOptions: ["ollama", "lmstudio", "together", "llamacpp", "ngc", "replicate"],
 };
 
 const codellama70bTrial: ModelPackage = {

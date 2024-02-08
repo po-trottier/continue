@@ -10,6 +10,22 @@ if (args[2] === "--target") {
   target = args[3];
 }
 
+var deleteFolderRecursive = function(path) {
+  try {
+    if( fs.existsSync(path) ) {
+      fs.readdirSync(path).forEach(function(file,index){
+        var curPath = path + "/" + file;
+        if(fs.lstatSync(curPath).isDirectory()) { // recurse
+          deleteFolderRecursive(curPath);
+        } else { // delete file
+          fs.unlinkSync(curPath);
+        }
+      });
+      fs.rmdirSync(path, { force: true });
+    }
+  } catch (_) {}
+};
+
 (async () => {
   console.log("[info] Packaging extension for target ", target);
 
@@ -142,19 +158,25 @@ if (args[2] === "--target") {
   if (target) {
     // If building for production, only need the binaries for current platform
     if (!target.startsWith("darwin")) {
-      fs.rmdirSync(path.join(__dirname, "../bin/napi-v3/darwin"), {
-        recursive: true,
-      });
+      try {
+        deleteFolderRecursive(path.join(__dirname, "../bin/napi-v3/darwin"));
+      } catch (error) {
+        console.log(error)
+      }
     }
     if (!target.startsWith("linux")) {
-      fs.rmdirSync(path.join(__dirname, "../bin/napi-v3/linux"), {
-        recursive: true,
-      });
+      try {
+        deleteFolderRecursive(path.join(__dirname, "../bin/napi-v3/linux"));
+      } catch (error) {
+        console.log(error)
+      }
     }
     if (!target.startsWith("win")) {
-      fs.rmdirSync(path.join(__dirname, "../bin/napi-v3/win32"), {
-        recursive: true,
-      });
+      try {
+        deleteFolderRecursive(path.join(__dirname, "../bin/napi-v3/win32"));
+      } catch (error) {
+        console.log(error)
+      }
     }
   }
   console.log("[info] Copied onnxruntime-node");

@@ -20,6 +20,7 @@ import LMStudio from "./LMStudio";
 import LlamaCpp from "./LlamaCpp";
 import Llamafile from "./Llamafile";
 import Mistral from "./Mistral";
+import NGC from "./NGC";
 import Ollama from "./Ollama";
 import OpenAI from "./OpenAI";
 import OpenAIFreeTrial from "./OpenAIFreeTrial";
@@ -90,6 +91,7 @@ const LLMs = [
   LMStudio,
   Gemini,
   Mistral,
+  NGC,
   Bedrock,
   DeepInfra,
   OpenAIFreeTrial,

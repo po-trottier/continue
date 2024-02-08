@@ -14,7 +14,8 @@
     "text-gen-webui",
     "google-palm",
     "lmstudio",
-    "llamafile"
+    "llamafile",
+    "ngc"
   ],
   "type": "string"
 }

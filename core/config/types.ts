@@ -419,7 +419,8 @@ declare global {
     | "mistral"
     | "bedrock"
     | "deepinfra"
-    | "flowise";
+    | "flowise"
+    | "ngc";
   
   export type ModelName =
     // OpenAI

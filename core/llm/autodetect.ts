@@ -77,6 +77,7 @@ const PARALLEL_PROVIDERS: ModelProvider[] = [
   "free-trial",
   "replicate",
   "together",
+  "ngc",
 ];
 
 function llmCanGenerateInParallel(

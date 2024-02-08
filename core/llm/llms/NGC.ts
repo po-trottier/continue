@@ -49,11 +49,6 @@ class NGC extends BaseLLM {
     messages: ChatMessage[],
     options: CompletionOptions
   ): AsyncGenerator<ChatMessage> {
-    const messageList = [];
-    for (const message of messages) {
-      messageList.push({ content: message.content, role: message.role });
-    }
-
     const apiUrl = `${this.apiBase}/${this.function_id_lookup[this.model]}`
     const headers = {
       "Content-Type": "application/json",
@@ -66,7 +61,7 @@ class NGC extends BaseLLM {
       method: "POST",
       headers,
       body: JSON.stringify({
-        messages: messageList,
+        messages: messages,
         stream: true,
         ...this._convertArgs(options),
       }),

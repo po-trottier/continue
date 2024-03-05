@@ -1,4 +1,12 @@
 import { ContextItemWithId, ILLM, SlashCommand } from "../..";
+import {
+  filterCodeBlockLines,
+  filterEnglishLinesAtEnd,
+  filterEnglishLinesAtStart,
+  fixCodeLlamaFirstLineIndentation,
+  streamWithNewLines,
+} from "../../autocomplete/lineStream";
+import { streamLines } from "../../diff/util";
 import { stripImages } from "../../llm/countTokens";
 import { dedentAndGetCommonWhitespace, renderPromptTemplate } from "../../util";
 import {
@@ -46,7 +54,7 @@ export async function getPromptParts(
   fullFileContents: string,
   model: ILLM,
   input: string,
-  tokenLimit: number | undefined
+  tokenLimit: number | undefined,
 ) {
   let maxTokens = Math.floor(model.contextLength / 2);
 
@@ -111,7 +119,7 @@ export async function getPromptParts(
       fileSuffix = lastLine + fileSuffix;
       rif.contents = rif.contents.substring(
         0,
-        rif.contents.length - lastLine.length
+        rif.contents.length - lastLine.length,
       );
       lines = rif.contents.split(/\r?\n/);
       lastLine = lines[lines.length - 1] || null;
@@ -133,7 +141,7 @@ function compilePrompt(
   filePrefix: string,
   contents: string,
   fileSuffix: string,
-  input: string
+  input: string,
 ): string {
   if (contents.trim() == "") {
     // Separate prompt for insertion at the cursor, the other tends to cause it to repeat whole file
@@ -208,11 +216,11 @@ const EditSlashCommand: SlashCommand = {
   run: async function* ({ ide, llm, input, history, contextItems, params }) {
     let contextItemToEdit = contextItems.find(
       (item: ContextItemWithId) =>
-        item.editing && item.id.providerTitle === "code"
+        item.editing && item.id.providerTitle === "code",
     );
     if (!contextItemToEdit) {
       contextItemToEdit = contextItems.find(
-        (item: ContextItemWithId) => item.id.providerTitle === "code"
+        (item: ContextItemWithId) => item.id.providerTitle === "code",
       );
     }
 
@@ -220,6 +228,20 @@ const EditSlashCommand: SlashCommand = {
       yield "Select (highlight and press `cmd+shift+M` (MacOS) / `ctrl+shift+M` (Windows)) the code that you want to edit first";
       return;
     }
+
+    // Strip unecessary parts of the input (the fact that you have to do this is suboptimal, should be refactored away)
+    let content = history[history.length - 1].content;
+    if (typeof content !== "string") {
+      content.forEach((part) => {
+        if (part.text && part.text.startsWith("/edit")) {
+          part.text = part.text.replace("/edit", "").trimStart();
+        }
+      });
+    }
+    let userInput = stripImages(content).replace(
+      `\`\`\`${contextItemToEdit.name}\n${contextItemToEdit.content}\n\`\`\`\n`,
+      "",
+    );
 
     const rif: RangeInFileWithContents =
       contextItemToRangeInFileWithContents(contextItemToEdit);
@@ -231,26 +253,25 @@ const EditSlashCommand: SlashCommand = {
       rif,
       fullFileContents,
       llm,
-      input,
-      params?.tokenLimit
+      userInput,
+      params?.tokenLimit,
     );
     const [dedentedContents, commonWhitespace] =
       dedentAndGetCommonWhitespace(contents);
     contents = dedentedContents;
 
-    let prompt = compilePrompt(filePrefix, contents, fileSuffix, input);
+    let prompt = compilePrompt(filePrefix, contents, fileSuffix, userInput);
     let fullFileContentsLines = fullFileContents.split("\n");
+    let fullPrefixLines = fullFileContentsLines.slice(
+      0,
+      Math.max(0, rif.range.start.line - 1),
+    );
+    let fullSuffixLines = fullFileContentsLines.slice(rif.range.end.line);
 
     let linesToDisplay: string[] = [];
 
     async function sendDiffUpdate(lines: string[], final: boolean = false) {
       let completion = lines.join("\n");
-
-      let fullPrefixLines = fullFileContentsLines.slice(
-        0,
-        rif.range.start.line
-      );
-      let fullSuffixLines = fullFileContentsLines.slice(rif.range.end.line);
 
       // Don't do this at the very end, just show the inserted code
       if (final) {
@@ -405,14 +426,14 @@ const EditSlashCommand: SlashCommand = {
 
       // Make sure they are sorted by index
       indicesOfLastMatchedLines = indicesOfLastMatchedLines.sort(
-        (a, b) => a[0] - b[0]
+        (a, b) => a[0] - b[0],
       );
 
       currentBlockLines.push(line);
     }
 
     let messages = history;
-    messages.push({ role: "user", content: prompt });
+    messages[messages.length - 1] = { role: "user", content: prompt };
 
     let linesOfPrefixCopied = 0;
     let lines = [];
@@ -431,12 +452,12 @@ const EditSlashCommand: SlashCommand = {
         messages.slice(0, messages.length - 1),
         {
           codeToEdit: rif.contents,
-          userInput: input,
+          userInput,
           filePrefix: filePrefix,
           fileSuffix: fileSuffix,
           systemMessage: llm.systemMessage || "",
           // "contextItems": (await sdk.getContextItemChatMessages()).map(x => x.content || "").join("\n\n"),
-        }
+        },
       );
       if (typeof rendered === "string") {
         messages = [
@@ -449,10 +470,19 @@ const EditSlashCommand: SlashCommand = {
         messages = rendered;
       }
 
-      generator = llm.streamComplete(rendered as string, {
+      const completion = llm.streamComplete(rendered as string, {
         maxTokens: Math.min(maxTokens, Math.floor(llm.contextLength / 2), 4096),
         raw: true,
       });
+      let lineStream = streamLines(completion);
+
+      lineStream = filterEnglishLinesAtStart(lineStream);
+
+      lineStream = filterEnglishLinesAtEnd(filterCodeBlockLines(lineStream));
+
+      generator = streamWithNewLines(
+        fixCodeLlamaFirstLineIndentation(lineStream),
+      );
     } else {
       async function* gen() {
         for await (let chunk of llm.streamChat(messages, {
@@ -460,7 +490,7 @@ const EditSlashCommand: SlashCommand = {
           maxTokens: Math.min(
             maxTokens,
             Math.floor(llm.contextLength / 2),
-            4096
+            4096,
           ),
         })) {
           yield stripImages(chunk.content);
@@ -470,7 +500,6 @@ const EditSlashCommand: SlashCommand = {
       generator = gen();
     }
 
-    let lastTaskTime = Date.now();
     for await (let chunk of generator) {
       // Stop early if it is repeating the fileSuffix or the step was deleted
       if (repeatingFileSuffix) {
@@ -508,7 +537,7 @@ const EditSlashCommand: SlashCommand = {
         else if (
           (linesOfPrefixCopied > 0 || completionLinesCovered === 0) &&
           linesOfPrefixCopied < filePrefix.split("\n").length &&
-          chunkLines[i] === fullFileContentsLines[linesOfPrefixCopied]
+          chunkLines[i] === fullPrefixLines[linesOfPrefixCopied]
         ) {
           // This is a sketchy way of stopping it from repeating the filePrefix. Is a bug if output happens to have a matching line
           linesOfPrefixCopied += 1;
@@ -533,17 +562,13 @@ const EditSlashCommand: SlashCommand = {
         currentLineInFile += 1;
       }
 
-      // Debounce the diff updates, last in only out for each period
-      if (lastTaskTime === null || Date.now() - lastTaskTime > 150) {
-        lastTaskTime = Date.now();
-        await sendDiffUpdate(
-          lines.concat([
-            unfinishedLine?.startsWith("<")
-              ? commonWhitespace
-              : commonWhitespace + unfinishedLine,
-          ])
-        );
-      }
+      await sendDiffUpdate(
+        lines.concat([
+          unfinishedLine?.startsWith("<")
+            ? commonWhitespace
+            : commonWhitespace + unfinishedLine,
+        ]),
+      );
     }
 
     // Add the unfinished line

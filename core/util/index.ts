@@ -37,7 +37,7 @@ export function proxyFetch(url: string, init?: RequestInit): Promise<Response> {
 
   if (!(url.startsWith("http://") || url.startsWith("https://"))) {
     // Relative URL
-    const fullUrl = `${(window as any).vscMediaUrl}/${url}`;
+    const fullUrl = `${window.vscMediaUrl}/${url}`;
     return (window as any)._fetch(fullUrl, init);
   }
 
@@ -92,17 +92,17 @@ export function dedentAndGetCommonWhitespace(s: string): [string, string] {
   return [lines.map((x) => x.replace(lcp, "")).join("\n"), lcp];
 }
 
-type PromptTemplate =
+export type PromptTemplate =
   | string
   | ((
       history: ChatMessage[],
-      otherData: Record<string, string>
+      otherData: Record<string, string>,
     ) => string | ChatMessage[]);
 
 export function renderPromptTemplate(
   template: PromptTemplate,
   history: ChatMessage[],
-  otherData: Record<string, string>
+  otherData: Record<string, string>,
 ): string | ChatMessage[] {
   if (typeof template === "string") {
     let data: any = {
@@ -184,4 +184,8 @@ export function getMarkdownLanguageTagForFile(filepath: string): string {
     default:
       return "";
   }
+}
+
+export function copyOf(obj: any): any {
+  return JSON.parse(JSON.stringify(obj));
 }

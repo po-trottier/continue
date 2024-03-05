@@ -29,11 +29,33 @@ var deleteFolderRecursive = function(path) {
 (async () => {
   console.log("[info] Packaging extension for target ", target);
 
-  // Copy config_schema.json to config.json in docs
+  // Copy config_schema.json to config.json in docs and intellij
   fs.copyFileSync(
     "config_schema.json",
     path.join("..", "..", "docs", "static", "schemas", "config.json")
   );
+  fs.copyFileSync(
+    "config_schema.json",
+    path.join(
+      "..",
+      "intellij",
+      "src",
+      "main",
+      "resources",
+      "config_schema.json"
+    )
+  );
+  // Modify and copy for .continuerc.json
+  const schema = JSON.parse(fs.readFileSync("config_schema.json", "utf8"));
+  schema.definitions.SerializedContinueConfig.properties.mergeBehavior = {
+    type: "string",
+    enum: ["merge", "overwrite"],
+    default: "merge",
+    title: "Merge behavior",
+    markdownDescription:
+      "If set to 'merge', .continuerc.json will be applied on top of config.json (arrays and objects are merged). If set to 'overwrite', then every top-level property of .continuerc.json will overwrite that property from config.json.",
+  };
+  fs.writeFileSync("continue_rc_schema.json", JSON.stringify(schema, null, 2));
 
   if (!process.cwd().endsWith("vscode")) {
     // This is sometimes run from root dir instead (e.g. in VS Code tasks)
@@ -66,7 +88,7 @@ var deleteFolderRecursive = function(path) {
 
   const indexHtmlPath = path.join(intellijExtensionWebviewPath, "index.html");
   fs.copyFileSync(indexHtmlPath, "tmp_index.html");
-  fs.rmSync(intellijExtensionWebviewPath, { recursive: true });
+  rimrafSync(intellijExtensionWebviewPath);
   fs.mkdirSync(intellijExtensionWebviewPath, { recursive: true });
 
   await new Promise((resolve, reject) => {
@@ -82,11 +104,19 @@ var deleteFolderRecursive = function(path) {
     });
   });
 
+  // Put back index.html
   if (fs.existsSync(indexHtmlPath)) {
-    fs.rmSync(indexHtmlPath, {});
+    rimrafSync(indexHtmlPath);
   }
   fs.copyFileSync("tmp_index.html", indexHtmlPath);
   fs.unlinkSync("tmp_index.html");
+
+  // Copy over other misc. files
+  fs.copyFileSync(
+    "../extensions/vscode/gui/onigasm.wasm",
+    path.join(intellijExtensionWebviewPath, "onigasm.wasm")
+  );
+
   console.log("[info] Copied gui build to Intellij extension");
 
   // Then copy over the dist folder to the VSCode extension //

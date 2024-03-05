@@ -7,10 +7,7 @@ import {
   indexDecorationType,
   redDecorationType,
 } from "./decorations";
-import {
-  editorToVerticalDiffCodeLens,
-  verticalPerLineDiffManager,
-} from "./manager";
+import { VerticalDiffCodeLens } from "./manager";
 
 export class VerticalPerLineDiffHandler {
   private editor: vscode.TextEditor;
@@ -19,21 +16,43 @@ export class VerticalPerLineDiffHandler {
   private currentLineIndex: number;
   private cancelled: boolean = false;
 
+  public get range(): vscode.Range {
+    const startLine = Math.min(this.startLine, this.endLine);
+    const endLine = Math.max(this.startLine, this.endLine);
+    return new vscode.Range(startLine, 0, endLine, Number.MAX_SAFE_INTEGER);
+  }
+
   private newLinesAdded: number = 0;
 
-  constructor(startLine: number, endLine: number, editor: vscode.TextEditor) {
+  public input?: string;
+
+  constructor(
+    startLine: number,
+    endLine: number,
+    editor: vscode.TextEditor,
+    private readonly editorToVerticalDiffCodeLens: Map<
+      string,
+      VerticalDiffCodeLens[]
+    >,
+    private readonly clearForFilepath: (
+      filepath: string | undefined,
+      accept: boolean,
+    ) => void,
+    input?: string,
+  ) {
     this.currentLineIndex = startLine;
     this.startLine = startLine;
     this.endLine = endLine;
     this.editor = editor;
+    this.input = input;
 
     this.redDecorationManager = new DecorationTypeRangeManager(
       redDecorationType,
-      this.editor
+      this.editor,
     );
     this.greenDecorationManager = new DecorationTypeRangeManager(
       greenDecorationType,
-      this.editor
+      this.editor,
     );
   }
 
@@ -57,13 +76,13 @@ export class VerticalPerLineDiffHandler {
     }
 
     if (this.deletionBuffer.length || this.insertedInCurrentBlock > 0) {
-      const blocks = editorToVerticalDiffCodeLens.get(this.filepath) || [];
+      const blocks = this.editorToVerticalDiffCodeLens.get(this.filepath) || [];
       blocks.push({
         start: this.currentLineIndex - this.insertedInCurrentBlock,
         numRed: this.deletionBuffer.length,
         numGreen: this.insertedInCurrentBlock,
       });
-      editorToVerticalDiffCodeLens.set(this.filepath, blocks);
+      this.editorToVerticalDiffCodeLens.set(this.filepath, blocks);
     }
 
     if (this.deletionBuffer.length === 0) {
@@ -74,16 +93,16 @@ export class VerticalPerLineDiffHandler {
     // Insert the block of deleted lines
     await this.insertTextAboveLine(
       this.currentLineIndex - this.insertedInCurrentBlock,
-      totalDeletedContent
+      totalDeletedContent,
     );
     this.redDecorationManager.addLines(
       this.currentLineIndex - this.insertedInCurrentBlock,
-      this.deletionBuffer.length
+      this.deletionBuffer.length,
     );
     // Shift green decorations downward
     this.greenDecorationManager.shiftDownAfterLine(
       this.currentLineIndex - this.insertedInCurrentBlock,
-      this.deletionBuffer.length
+      this.deletionBuffer.length,
     );
 
     // Update line index, clear buffer
@@ -109,9 +128,9 @@ export class VerticalPerLineDiffHandler {
         editBuilder.insert(
           new vscode.Position(
             lineCount,
-            this.editor.document.lineAt(lineCount - 1).text.length
+            this.editor.document.lineAt(lineCount - 1).text.length,
           ),
-          "\n" + text
+          "\n" + text,
         );
       } else {
         editBuilder.insert(new vscode.Position(index, 0), text + "\n");
@@ -129,7 +148,7 @@ export class VerticalPerLineDiffHandler {
     const startLine = new vscode.Position(index, 0);
     await this.editor.edit((editBuilder) => {
       editBuilder.delete(
-        new vscode.Range(startLine, startLine.translate(numLines))
+        new vscode.Range(startLine, startLine.translate(numLines)),
       );
     });
   }
@@ -145,7 +164,7 @@ export class VerticalPerLineDiffHandler {
       this.editor.setDecorations(indexDecorationType, [
         new vscode.Range(
           start,
-          new vscode.Position(start.line, Number.MAX_SAFE_INTEGER)
+          new vscode.Position(start.line, Number.MAX_SAFE_INTEGER),
         ),
       ]);
       const end = new vscode.Position(this.endLine, 0);
@@ -161,6 +180,11 @@ export class VerticalPerLineDiffHandler {
   }
 
   clear(accept: boolean) {
+    vscode.commands.executeCommand(
+      "setContext",
+      "continue.streamingDiff",
+      false,
+    );
     const rangesToDelete = accept
       ? this.redDecorationManager.getRanges()
       : this.greenDecorationManager.getRanges();
@@ -169,15 +193,15 @@ export class VerticalPerLineDiffHandler {
     this.greenDecorationManager.clear();
     this.clearIndexLineDecorations();
 
-    editorToVerticalDiffCodeLens.delete(this.filepath);
+    this.editorToVerticalDiffCodeLens.delete(this.filepath);
 
     this.editor.edit((editBuilder) => {
       for (const range of rangesToDelete) {
         editBuilder.delete(
           new vscode.Range(
             range.start,
-            new vscode.Position(range.end.line + 1, 0)
-          )
+            new vscode.Position(range.end.line + 1, 0),
+          ),
         );
       }
     });
@@ -232,7 +256,7 @@ export class VerticalPerLineDiffHandler {
       //   }
       // });
     } catch (e) {
-      verticalPerLineDiffManager.clearForFilepath(this.filepath, false);
+      this.clearForFilepath(this.filepath, false);
       throw e;
     }
   }
@@ -241,7 +265,7 @@ export class VerticalPerLineDiffHandler {
     accept: boolean,
     startLine: number,
     numGreen: number,
-    numRed: number
+    numRed: number,
   ) {
     if (numGreen > 0) {
       // Delete the editor decoration
@@ -269,7 +293,7 @@ export class VerticalPerLineDiffHandler {
 
     // Shift the codelens objects
     const blocks =
-      editorToVerticalDiffCodeLens
+      this.editorToVerticalDiffCodeLens
         .get(this.filepath)
         ?.filter((x) => x.start !== startLine)
         .map((x) => {
@@ -278,6 +302,6 @@ export class VerticalPerLineDiffHandler {
           }
           return x;
         }) || [];
-    editorToVerticalDiffCodeLens.set(this.filepath, blocks);
+    this.editorToVerticalDiffCodeLens.set(this.filepath, blocks);
   }
 }

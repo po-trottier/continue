@@ -21,7 +21,24 @@ const NON_CHAT_MODELS = [
   "ada",
 ];
 
+const CHAT_ONLY_MODELS = [
+  "gpt-3.5-turbo",
+  "gpt-3.5-turbo-0613",
+  "gpt-3.5-turbo-16k",
+  "gpt-4",
+  "gpt-35-turbo-16k",
+  "gpt-35-turbo-0613",
+  "gpt-35-turbo",
+  "gpt-4-32k",
+  "gpt-4-turbo-preview",
+  "gpt-4-vision",
+  "gpt-4-0125-preview",
+  "gpt-4-1106-preview",
+];
+
 class OpenAI extends BaseLLM {
+  public useLegacyCompletionsEndpoint = false;
+
   static providerName: ModelProvider = "openai";
   static defaultOptions: Partial<LLMOptions> = {
     apiBase: "https://api.openai.com/v1",
@@ -54,7 +71,9 @@ class OpenAI extends BaseLLM {
       top_p: options.topP,
       frequency_penalty: options.frequencyPenalty,
       presence_penalty: options.presencePenalty,
-      stop: options.stop?.slice(0, 4),
+      stop: this.apiBase?.includes(":1337")
+        ? options.stop?.slice(0, 4)
+        : options.stop,
     };
 
     return finalOptions;
@@ -62,12 +81,12 @@ class OpenAI extends BaseLLM {
 
   protected async _complete(
     prompt: string,
-    options: CompletionOptions
+    options: CompletionOptions,
   ): Promise<string> {
     let completion = "";
     for await (const chunk of this._streamChat(
       [{ role: "user", content: prompt }],
-      options
+      options,
     )) {
       completion += chunk.content;
     }
@@ -76,7 +95,7 @@ class OpenAI extends BaseLLM {
   }
 
   private _getEndpoint(
-    endpoint: "/chat/completions" | "/completions" | "/models"
+    endpoint: "/chat/completions" | "/completions" | "/models",
   ) {
     if (this.apiType === "azure") {
       return `${this.apiBase}/openai/deployments/${this.engine}${endpoint}?api-version=${this.apiVersion}`;
@@ -84,7 +103,7 @@ class OpenAI extends BaseLLM {
       let url = this.apiBase;
       if (!url) {
         throw new Error(
-          "No API base URL provided. Please set the 'apiBase' option in config.json"
+          "No API base URL provided. Please set the 'apiBase' option in config.json",
         );
       }
       if (url.endsWith("/")) {
@@ -97,11 +116,11 @@ class OpenAI extends BaseLLM {
 
   protected async *_streamComplete(
     prompt: string,
-    options: CompletionOptions
+    options: CompletionOptions,
   ): AsyncGenerator<string> {
     for await (const chunk of this._streamChat(
       [{ role: "user", content: prompt }],
-      options
+      options,
     )) {
       yield stripImages(chunk.content);
     }
@@ -109,7 +128,7 @@ class OpenAI extends BaseLLM {
 
   protected async *_legacystreamComplete(
     prompt: string,
-    options: CompletionOptions
+    options: CompletionOptions,
   ): AsyncGenerator<string> {
     const args: any = this._convertArgs(options, []);
     args.prompt = prompt;
@@ -137,12 +156,16 @@ class OpenAI extends BaseLLM {
 
   protected async *_streamChat(
     messages: ChatMessage[],
-    options: CompletionOptions
+    options: CompletionOptions,
   ): AsyncGenerator<ChatMessage> {
-    if (NON_CHAT_MODELS.includes(options.model)) {
+    if (
+      !CHAT_ONLY_MODELS.includes(options.model) &&
+      (NON_CHAT_MODELS.includes(options.model) ||
+        this.useLegacyCompletionsEndpoint)
+    ) {
       for await (const content of this._legacystreamComplete(
         stripImages(messages[messages.length - 1]?.content || ""),
-        options
+        options,
       )) {
         yield {
           role: "assistant",

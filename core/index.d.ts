@@ -1,4 +1,25 @@
-import { BrowserSerializedContinueConfig } from "./config/load";
+declare global {
+  interface Window {
+    ide?: "vscode";
+    windowId: string;
+    serverUrl: string;
+    vscMachineId: string;
+    vscMediaUrl: string;
+    fullColorTheme?: {
+      rules?: {
+        token?: string;
+        foreground?: string;
+      }[];
+    };
+    colorThemeName?: string;
+    workspacePaths?: string[];
+    postIntellijMessage?: (
+      messageType: string,
+      data: any,
+      messageIde: string,
+    ) => void;
+  }
+}
 
 export interface ChunkWithoutID {
   content: string;
@@ -52,17 +73,17 @@ export interface ILLM extends LLMOptions {
 
   streamComplete(
     prompt: string,
-    options?: LLMFullCompletionOptions
+    options?: LLMFullCompletionOptions,
   ): AsyncGenerator<string, LLMReturnValue>;
 
   streamChat(
     messages: ChatMessage[],
-    options?: LLMFullCompletionOptions
+    options?: LLMFullCompletionOptions,
   ): AsyncGenerator<ChatMessage, LLMReturnValue>;
 
   chat(
     messages: ChatMessage[],
-    options?: LLMFullCompletionOptions
+    options?: LLMFullCompletionOptions,
   ): Promise<ChatMessage>;
 
   countTokens(text: string): number;
@@ -78,6 +99,7 @@ export interface ContextProviderDescription {
   title: string;
   displayTitle: string;
   description: string;
+  renderInlineAs?: string;
   type: ContextProviderType;
 }
 
@@ -97,13 +119,14 @@ export interface CustomContextProvider {
   title: string;
   displayTitle?: string;
   description?: string;
+  renderInlineAs?: string;
   type?: ContextProviderType;
   getContextItems(
     query: string,
-    extras: ContextProviderExtras
+    extras: ContextProviderExtras,
   ): Promise<ContextItem[]>;
   loadSubmenuItems?: (
-    args: LoadSubmenuItemsArgs
+    args: LoadSubmenuItemsArgs,
   ) => Promise<ContextSubmenuItem[]>;
 }
 
@@ -118,7 +141,7 @@ export interface IContextProvider {
 
   getContextItems(
     query: string,
-    extras: ContextProviderExtras
+    extras: ContextProviderExtras,
   ): Promise<ContextItem[]>;
 
   loadSubmenuItems(args: LoadSubmenuItemsArgs): Promise<ContextSubmenuItem[]>;
@@ -141,6 +164,11 @@ export interface SessionInfo {
 export interface RangeInFile {
   filepath: string;
   range: Range;
+}
+
+export interface FileWithContents {
+  filepath: string;
+  contents: string;
 }
 
 export interface Range {
@@ -259,15 +287,15 @@ export interface CustomLLMWithOptionals {
   streamCompletion?: (
     prompt: string,
     options: CompletionOptions,
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   ) => AsyncGenerator<string>;
   streamChat?: (
     messages: ChatMessage[],
     options: CompletionOptions,
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   ) => AsyncGenerator<string>;
   listModels?: (
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   ) => Promise<string[]>;
 }
 
@@ -292,13 +320,24 @@ export class Problem {
   message: string;
 }
 
+export type IdeType = "vscode" | "jetbrains";
+export interface IdeInfo {
+  ideType: IdeType;
+  name: string;
+  version: string;
+  remoteName: string;
+}
+
 export interface IDE {
-  getSerializedConfig(): Promise<BrowserSerializedContinueConfig>;
+  getIdeInfo(): Promise<IdeInfo>;
   getDiff(): Promise<string>;
+  isTelemetryEnabled(): Promise<boolean>;
+  getUniqueId(): Promise<string>;
   getTerminalContents(): Promise<string>;
   listWorkspaceContents(directory?: string): Promise<string[]>;
   listFolders(): Promise<string[]>;
   getWorkspaceDirs(): Promise<string[]>;
+  getWorkspaceConfigs(): Promise<ContinueRcJson[]>;
   writeFile(path: string, contents: string): Promise<void>;
   showVirtualFile(title: string, contents: string): Promise<void>;
   getContinueDir(): Promise<string>;
@@ -306,21 +345,16 @@ export interface IDE {
   runCommand(command: string): Promise<void>;
   saveFile(filepath: string): Promise<void>;
   readFile(filepath: string): Promise<string>;
+  readRangeInFile(filepath: string, range: Range): Promise<string>;
   showLines(
     filepath: string,
     startLine: number,
-    endLine: number
+    endLine: number,
   ): Promise<void>;
   showDiff(
     filepath: string,
     newContents: string,
-    stepIndex: number
-  ): Promise<void>;
-  verticalDiffUpdate(
-    filepath: string,
-    startLine: number,
-    endLine: number,
-    diffLine: DiffLine
+    stepIndex: number,
   ): Promise<void>;
   getOpenFiles(): Promise<string[]>;
   getPinnedFiles(): Promise<string[]>;
@@ -328,22 +362,7 @@ export interface IDE {
   subprocess(command: string): Promise<[string, string]>;
   getProblems(filepath?: string | undefined): Promise<Problem[]>;
   getBranch(dir: string): Promise<string>;
-
-  // Embeddings
-  /**
-   * Returns list of [tag, filepath, hash of contents] that need to be embedded
-   */
-  getFilesToEmbed(providerId: string): Promise<[string, string, string][]>;
-  sendEmbeddingForChunk(
-    chunk: Chunk,
-    embedding: number[],
-    tags: string[]
-  ): void;
-  retrieveChunks(
-    text: string,
-    n: number,
-    directory: string | undefined
-  ): Promise<Chunk[]>;
+  getStats(directory: string): Promise<{ [path: string]: number }>;
 }
 
 // Slash Commands
@@ -356,6 +375,8 @@ export interface ContinueSDK {
   input: string;
   params?: { [key: string]: any } | undefined;
   contextItems: ContextItemWithId[];
+  selectedCode: RangeInFile[];
+  config: ContinueConfig;
 }
 
 export interface SlashCommand {
@@ -395,7 +416,10 @@ type ContextProviderName =
   | "http"
   | "codebase"
   | "problems"
-  | "folder";
+  | "folder"
+  | "jira"
+  | "postgres"
+  | "database";
 
 type TemplateType =
   | "llama2"
@@ -442,7 +466,7 @@ export type ModelName =
   | "gpt-4"
   | "gpt-3.5-turbo-0613"
   | "gpt-4-32k"
-  | "gpt-4-0125-preview"
+  | "gpt-4-turbo-preview"
   | "gpt-4-vision-preview"
   // Open Source
   | "mistral-7b"
@@ -466,6 +490,9 @@ export type ModelName =
   | "neural-chat-7b"
   // Anthropic
   | "claude-2"
+  | "claude-3-opus-20240229"
+  | "claude-3-sonnet-20240229"
+  | "claude-2.1"
   // Google PaLM
   | "chat-bison-001"
   // Gemini
@@ -486,6 +513,7 @@ export interface RequestOptions {
   caBundlePath?: string | string[];
   proxy?: string;
   headers?: { [key: string]: string };
+  extraBodyProperties?: { [key: string]: any };
 }
 
 export interface StepWithParams {
@@ -520,6 +548,7 @@ interface BaseCompletionOptions {
   mirostat?: number;
   stop?: string[];
   maxTokens?: number;
+  numThreads?: number;
 }
 
 export interface ModelDescription {
@@ -561,9 +590,17 @@ export interface TabAutocompleteOptions {
   maxSuffixPercentage: number;
   prefixPercentage: number;
   template?: string;
+  multilineCompletions: "always" | "never" | "auto";
+  slidingWindowPrefixPercentage: number;
+  slidingWindowSize: number;
+  maxSnippetPercentage: number;
+  recentlyEditedSimilarityThreshold: number;
+  useCache: boolean;
+  onlyMyCode: boolean;
 }
 
 export interface SerializedContinueConfig {
+  env?: string[];
   allowAnonymousTelemetry?: boolean;
   models: ModelDescription[];
   systemMessage?: string;
@@ -578,6 +615,12 @@ export interface SerializedContinueConfig {
   tabAutocompleteModel?: ModelDescription;
   tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
 }
+
+export type ConfigMergeType = "merge" | "overwrite";
+
+export type ContinueRcJson = Partial<SerializedContinueConfig> & {
+  mergeBehavior: ConfigMergeType;
+};
 
 export interface Config {
   /** If set to true, Continue will collect anonymous usage data to improve the product. If set to false, we will collect nothing. Read here to learn more: https://continue.dev/docs/telemetry */
@@ -624,4 +667,17 @@ export interface ContinueConfig {
   embeddingsProvider: EmbeddingsProvider;
   tabAutocompleteModel?: ILLM;
   tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
+}
+
+export interface BrowserSerializedContinueConfig {
+  allowAnonymousTelemetry?: boolean;
+  models: ModelDescription[];
+  systemMessage?: string;
+  completionOptions?: BaseCompletionOptions;
+  slashCommands?: SlashCommandDescription[];
+  contextProviders?: ContextProviderDescription[];
+  disableIndexing?: boolean;
+  disableSessionTitles?: boolean;
+  userToken?: string;
+  embeddingsProvider?: string;
 }

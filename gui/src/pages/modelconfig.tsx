@@ -1,5 +1,4 @@
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import { postToIde } from "core/ide/messaging";
 import _ from "lodash";
 import { useCallback, useEffect, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
@@ -14,8 +13,9 @@ import {
 } from "../components";
 import StyledMarkdownPreview from "../components/markdown/StyledMarkdownPreview";
 import ModelCard from "../components/modelSelection/ModelCard";
+import { useNavigationListener } from "../hooks/useNavigationListener";
 import { setDefaultModel } from "../redux/slices/stateSlice";
-import { addModel } from "../util/ide";
+import { postToIde } from "../util/ide";
 import {
   MODEL_PROVIDER_TAG_COLORS,
   ModelInfo,
@@ -39,7 +39,6 @@ export const CustomModelButton = styled.div<{ disabled: boolean }>`
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
   transition: all 0.5s;
 
   ${(props) =>
@@ -57,6 +56,7 @@ export const CustomModelButton = styled.div<{ disabled: boolean }>`
 `;
 
 function ModelConfig() {
+  useNavigationListener();
   const formMethods = useForm();
   const { modelName } = useParams();
 
@@ -70,7 +70,6 @@ function ModelConfig() {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const vscMediaUrl = (window as any).vscMediaUrl;
 
   const disableModelCards = useCallback(() => {
     return (
@@ -108,9 +107,9 @@ function ModelConfig() {
 
         <div className="px-2">
           <div style={{ display: "flex", alignItems: "center" }}>
-            {vscMediaUrl && modelInfo?.icon && (
+            {window.vscMediaUrl && modelInfo?.icon && (
               <img
-                src={`${vscMediaUrl}/logos/${modelInfo?.icon}`}
+                src={`${window.vscMediaUrl}/logos/${modelInfo?.icon}`}
                 height="24px"
                 style={{ marginRight: "10px" }}
               />
@@ -245,7 +244,7 @@ function ModelConfig() {
                     ...formParams,
                     provider: modelInfo.provider,
                   };
-                  addModel(model);
+                  postToIde("config/addModel", { model });
                   dispatch(setDefaultModel(model.title));
                   navigate("/");
                 }}
@@ -263,7 +262,7 @@ function ModelConfig() {
             <CustomModelButton
               disabled={false}
               onClick={(e) => {
-                postToIde("openConfigJson", {});
+                postToIde("openConfigJson", undefined);
               }}
             >
               <h3 className="text-center my-2">Open config.json</h3>

@@ -17,11 +17,11 @@ class Gemini extends BaseLLM {
 
   protected async *_streamComplete(
     prompt: string,
-    options: CompletionOptions
+    options: CompletionOptions,
   ): AsyncGenerator<string> {
     for await (const chunk of this._streamChat(
       [{ role: "user", content: prompt }],
-      options
+      options,
     )) {
       yield stripImages(chunk.content);
     }
@@ -29,9 +29,9 @@ class Gemini extends BaseLLM {
 
   protected async *_streamChat(
     messages: ChatMessage[],
-    options: CompletionOptions
+    options: CompletionOptions,
   ): AsyncGenerator<ChatMessage> {
-    const apiUrl = `https://${this.region}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/us-central1/publishers/google/models/gemini-pro:streamGenerateContent`;
+    const apiUrl = `https://${this.region}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.region}/publishers/google/models/gemini-pro:streamGenerateContent`;
     const body = {
       contents: messages.map((msg) => {
         return {
@@ -60,7 +60,12 @@ class Gemini extends BaseLLM {
     if (data[0]?.error) {
       throw new Error(data[0].error.message);
     }
-    yield data[0]?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let combinedText = "";
+    for (const entry of data || []) {
+      combinedText += entry?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    }
+
+    yield { role: "assistant", content: combinedText.trim() };
   }
 }
 

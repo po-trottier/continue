@@ -52,6 +52,27 @@ For many cases, either Continue will have a built-in provider or the API you use
 
 However, if neither of these are the case, you will need to wire up a new LLM object. Learn how to do this [here](#defining-a-custom-llm-provider).
 
+## Authentication
+
+If you need to send custom headers for authentication, you may use the `requestOptions.headers` property like in this example with Ollama:
+
+```json title="~/.continue/config.json"
+{
+  "models": [
+    {
+      "title": "Ollama",
+      "provider": "ollama",
+      "model": "llama2-7b",
+      "requestOptions": {
+        "headers": {
+          "Authorization": "Bearer xxx"
+        }
+      }
+    }
+  ]
+}
+```
+
 ## Customizing the Chat Template
 
 Most open-source models expect a specific chat format, for example llama2 and codellama expect the input to look like `"[INST] How do I write bubble sort in Rust? [/INST]"`. Continue will automatically attempt to detect the correct prompt format based on the `model`value that you provide, but if you are receiving nonsense responses, you can use the`template`property to explicitly set the format that you expect. The options are:`["llama2", "alpaca", "zephyr", "phind", "anthropic", "chatml", "openchat", "neural-chat", "none"]`.
@@ -98,9 +119,9 @@ This exact function and a few other default implementations are available in [`c
 
 You also have access to customize the prompt used in the '/edit' slash command. We already have a well-engineered prompt for GPT-4 and sensible defaults for less powerful open-source models, but you might wish to play with the prompt and try to find a more reliable alternative if you are for example getting English as well as code in your output.
 
-To customize the prompt, use the `promptTemplates` property of any model, which is a dictionary, and set the "edit" key to a template string with Mustache syntax. The 'filePrefix', 'fileSuffix', 'codeToEdit', 'language', 'contextItems', and 'userInput' variables are available in the template. Here is an example:
+To customize the prompt, use the `promptTemplates` property of any model, which is a dictionary, and set the "edit" key to a template string with Mustache syntax. The 'filePrefix', 'fileSuffix', 'codeToEdit', 'language', 'contextItems', and 'userInput' variables are available in the template. Here is an example of how it can be set in `config.ts`:
 
-```typescript
+```typescript title="~/.continue/config.ts"
 const codellamaEditPrompt = `\`\`\`{{{language}}}
 {{{codeToEdit}}}
 \`\`\`
@@ -109,13 +130,9 @@ const codellamaEditPrompt = `\`\`\`{{{language}}}
 Your answer should be given inside of a code block. It should use the same kind of indentation as above.
 [/INST] Sure! Here's the rewritten code you requested:
 \`\`\`{{{language}}}`;
-```
 
-It can then be used like this in `config.ts`:
-
-```typescript title="~/.continue/config.ts"
 function modifyConfig(config: Config): Config {
-  config.models[0].promptTemplates["edit"] = "<INSERT_TEMPLATE_HERE>";
+  config.models[0].promptTemplates["edit"] = codellamaEditPrompt;
   return config;
 }
 ```

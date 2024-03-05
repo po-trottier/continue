@@ -1,6 +1,5 @@
 import { Database, open } from "sqlite";
 import sqlite3 from "sqlite3";
-import * as lancedb from "vectordb";
 import { Chunk } from "../..";
 import { getDocsSqlitePath, getLanceDbPath } from "../../util/paths";
 
@@ -29,8 +28,9 @@ async function createDocsTable(db: Database<sqlite3.Database>) {
 export async function retrieveDocs(
   baseUrl: string,
   vector: number[],
-  nRetrieve: number
+  nRetrieve: number,
 ): Promise<Chunk[]> {
+  const lancedb = await import("vectordb");
   const lance = await lancedb.connect(getLanceDbPath());
   const table = await lance.openTable(DOCS_TABLE_NAME);
   const docs: LanceDbDocsRow[] = await table
@@ -56,7 +56,7 @@ export async function addDocs(
   title: string,
   baseUrl: URL,
   chunks: Chunk[],
-  embeddings: number[][]
+  embeddings: number[][],
 ) {
   const data: LanceDbDocsRow[] = chunks.map((chunk, i) => ({
     title: chunk.otherMetadata?.title || title,
@@ -68,6 +68,7 @@ export async function addDocs(
     vector: embeddings[i],
   }));
 
+  const lancedb = await import("vectordb");
   const lance = await lancedb.connect(getLanceDbPath());
   const tableNames = await lance.tableNames();
   if (!tableNames.includes(DOCS_TABLE_NAME)) {
@@ -86,7 +87,7 @@ export async function addDocs(
   await db.run(
     `INSERT INTO docs (title, baseUrl) VALUES (?, ?)`,
     title,
-    baseUrl.toString()
+    baseUrl.toString(),
   );
 }
 

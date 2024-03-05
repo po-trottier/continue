@@ -1,7 +1,7 @@
 {
   "name": "continue",
   "icon": "media/icon.png",
-  "version": "0.9.58",
+  "version": "0.9.80",
   "repository": {
     "type": "git",
     "url": "https://github.com/continuedev/continue"
@@ -64,8 +64,23 @@
         },
         "continue.enableTabAutocomplete": {
           "type": "boolean",
-          "default": false,
-          "markdownDescription": "Enable Continue's experimental tab autocomplete feature. Read our walkthrough to learn about configuration and how to share feedback: [continue.dev › Walkthrough: Tab Autocomplete](https://continue.dev/docs/walkthroughs/tab-autocomplete)"
+          "default": true,
+          "markdownDescription": "Enable Continue's tab autocomplete feature. Read our walkthrough to learn about configuration and how to share feedback: [continue.dev › Walkthrough: Tab Autocomplete](https://continue.dev/docs/walkthroughs/tab-autocomplete)"
+        },
+        "continue.remoteConfigServerUrl": {
+          "type": "string",
+          "default": null,
+          "markdownDescription": "If your team is set up to use shared configuration, enter the server URL here and your user token below to enable automatic syncing."
+        },
+        "continue.userToken": {
+          "type": "string",
+          "default": null,
+          "markdownDescription": "If your team is set up to use shared configuration, enter your user token here and your server URL above to enable automatic syncing."
+        },
+        "continue.remoteConfigSyncPeriod": {
+          "type": "number",
+          "default": 60,
+          "description": "The period of time in minutes between automatic syncs."
         }
       }
     },
@@ -180,13 +195,13 @@
     "keybindings": [
       {
         "command": "continue.focusContinueInput",
-        "mac": "cmd+m",
-        "key": "ctrl+m"
+        "mac": "cmd+l",
+        "key": "ctrl+l"
       },
       {
         "command": "continue.focusContinueInputWithoutClear",
-        "mac": "cmd+shift+m",
-        "key": "ctrl+shift+m"
+        "mac": "cmd+shift+l",
+        "key": "ctrl+shift+l"
       },
       {
         "command": "continue.acceptDiff",
@@ -199,14 +214,20 @@
         "key": "shift+ctrl+backspace"
       },
       {
+        "command": "continue.rejectDiff",
+        "mac": "cmd+z",
+        "key": "ctrl+z",
+        "when": "continue.streamingDiff"
+      },
+      {
         "command": "continue.quickEdit",
-        "mac": "cmd+shift+l",
-        "key": "ctrl+shift+l"
+        "mac": "cmd+i",
+        "key": "ctrl+i"
       },
       {
         "command": "continue.toggleAuxiliaryBar",
-        "mac": "alt+cmd+m",
-        "key": "alt+ctrl+m"
+        "mac": "alt+cmd+l",
+        "key": "alt+ctrl+l"
       },
       {
         "command": "continue.debugTerminal",
@@ -397,7 +418,7 @@
       },
       {
         "fileMatch": ".continuerc.json",
-        "url": "./config_schema.json"
+        "url": "./continue_rc_schema.json"
       }
     ]
   },
@@ -433,7 +454,6 @@
     "@types/ws": "^8.5.4",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
-    "@vscode/test-electron": "^2.2.0",
     "@vscode/vsce": "^2.22.0",
     "cargo-cp-artifact": "^0.1",
     "esbuild": "^0.17.19",
@@ -452,9 +472,11 @@
     "@types/jest": "^29.5.11",
     "@types/node-fetch": "^2.6.11",
     "@vscode/ripgrep": "^1.15.9",
+    "@vscode/test-electron": "^2.3.9",
     "axios": "^1.2.5",
     "core": "file:../../core",
     "cors": "^2.8.5",
+    "dbinfoz": "^0.1.4",
     "downshift": "^7.6.0",
     "express": "^4.18.2",
     "fkill": "^8.1.0",
@@ -468,6 +490,7 @@
     "https-proxy-agent": "^7.0.2",
     "ignore": "^5.3.0",
     "jest": "^29.7.0",
+    "mocha": "^10.3.0",
     "monaco-editor": "^0.45.0",
     "monaco-vscode-textmate-theme-converter": "^0.1.7",
     "ncp": "^2.0.0",
